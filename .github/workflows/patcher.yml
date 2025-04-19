@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: Downloading and merging of the original Spotify .xapk
         run: |
-          curl -sL "https://d.apkpure.com/b/XAPK/com.spotify.music?version=latest" -o "temp" -J
+          wget --content-disposition --trust-server-names "https://d.apkpure.com/b/XAPK/com.spotify.music?version=latest"
           
           xapkname=$(ls Spotify*.xapk)
           echo "SPOTIFY_XAPK=$xapkname" >> $GITHUB_ENV
