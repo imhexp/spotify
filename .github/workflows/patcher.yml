@@ -5,6 +5,7 @@ name: Patch workflow (hexpSpotify)
 on:
   schedule:
     - cron: '0 18 * * *' # patch daily at 20:00 gmt+2 (spanish local time)
+  workflow_dispatch:
 
 permissions:
   contents: write
