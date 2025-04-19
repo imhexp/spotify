@@ -1,0 +1,76 @@
+name: Patch workflow (hexpSpotify)
+
+# this is real dirty code! consider this as a draft more than prod code.
+
+on:
+  schedule:
+    - cron: '0 18 * * *' # patch daily at 20:00 gmt+2 (spanish local time)
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: self-hosted
+
+    steps:
+      - name: Downloading and merging of the original Spotify .xapk
+        run: |
+          curl -sL "https://d.apkpure.com/b/XAPK/com.spotify.music?version=latest" -o "temp" -J
+          
+          xapkname=$(ls Spotify*.xapk)
+          echo "SPOTIFY_XAPK=$xapkname" >> $GITHUB_ENV
+          version=$(echo "$xapkname" | cut -d '_' -f3)
+          echo "SPOTIFY_VERSION=$version" >> $GITHUB_ENV
+          
+          mv "$xapkname" spotify.xapk
+
+          wget -O apkeditor.jar "https://github.com/REAndroid/APKEditor/releases/download/V1.4.2/APKEditor-1.4.2.jar"
+
+          java -jar apkeditor.jar m -i spotify.xapk
+
+          rm spotify.xapk
+
+          mv spotify_merged.apk spotify.apk
+
+      - name: Patch download and actually patching Spotify
+        run: |
+          TAG=$(curl -sSL "https://api.github.com/repos/ReVanced/revanced-cli/releases/latest" | jq -r '.tag_name')
+          VERSION=${TAG#v}
+          echo "REVANCED_VERSION=$VERSION" >> $GITHUB_ENV
+          wget -O revanced-cli.jar "https://github.com/ReVanced/revanced-cli/releases/download/${TAG}/revanced-cli-${VERSION}-all.jar"
+
+          PATCH_TAG=$(curl -sSL "https://api.github.com/repos/ReVanced/revanced-patches/releases/latest" | jq -r '.tag_name')
+          PATCH_VERSION=${PATCH_TAG#v}
+          echo "PATCH_VERSION=$PATCH_VERSION" >> $GITHUB_ENV
+          wget -O patches.rvp "https://github.com/ReVanced/revanced-patches/releases/download/${PATCH_TAG}/patches-${PATCH_VERSION}.rvp"
+
+          java -jar revanced-cli.jar patch -p patches.rvp spotify.apk
+
+      - name: Timestamp and SHA256 for release body
+        id: meta
+        run: |
+          export BUILD_TIME=$(TZ="Europe/Madrid" date '+%H:%M:%S')
+          export APK_HASH=$(sha256sum spotify.apk | cut -d ' ' -f1)
+          echo "BUILD_TIME=$BUILD_TIME" >> $GITHUB_ENV
+          echo "APK_HASH=$APK_HASH" >> $GITHUB_ENV
+
+      - name: GitHub release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: "spotify${{ env.SPOTIFY_VERSION }}_revanced${{ env.PATCH_VERSION }}"
+          name: "Spotify ${{ env.SPOTIFY_VERSION }} + ReVanced ${{ env.PATCH_VERSION }}"
+          body: |
+            This is Spotify `${{ env.SPOTIFY_VERSION }}` patched with ReVanced `${{ env.PATCH_VERSION }}` patches.
+
+            The APK attached in this release was built and patched automatically using the latest Spotify and Revanced patches as of `${{ env.BUILD_TIME }} GMT+2`
+
+            SHA-256 checksum of the APK file:
+            `${{ env.APK_HASH }}`
+
+            Use it at your own risk. Please note that I will not take responsability for banned or ratelimited accounts, it is **you** who decides to use these mods.
+          files: spotify.apk
+          prerelease: true
+
+      - name: Clean up temp files
+        run: rm -f apkeditor.jar revanced-cli.jar patches.rvp spotify.apk
