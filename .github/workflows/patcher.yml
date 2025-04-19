@@ -34,7 +34,7 @@ jobs:
 
           mv spotify_merged.apk spotify.apk
 
-          apksigner sign --ks hexpspotify.jks --ks-key-alias ${{ secrets.KEY_ALIAS }} --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} --key-pass pass:${{ secrets.KEY_PASSWORD }} spotify.apk
+          apksigner sign --ks keystore_resign.jks --ks-key-alias ${{ secrets.KEY_ALIAS }} --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} --key-pass pass:${{ secrets.KEY_PASSWORD }} spotify.apk
 
       - name: Patch download and actually patching Spotify
         run: |
