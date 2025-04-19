@@ -32,7 +32,9 @@ jobs:
 
           rm spotify.xapk
 
-          mv spotify_merged.apk spotify.apk   
+          mv spotify_merged.apk spotify.apk
+
+          apksigner sign --ks hexpspotify.jks --ks-key-alias ${{ secrets.KEY_ALIAS }} --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} --key-pass pass:${{ secrets.KEY_PASSWORD }} spotify.apk
 
       - name: Patch download and actually patching Spotify
         run: |
@@ -56,10 +58,6 @@ jobs:
           echo "BUILD_TIME=$BUILD_TIME" >> $GITHUB_ENV
           echo "APK_HASH=$APK_HASH" >> $GITHUB_ENV
 
-      - name: Sign final Spotify APK
-        run: |
-          apksigner sign --ks ../../hexpspotify.jks --ks-key-alias ${{ secrets.KEY_ALIAS }} --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} --key-pass pass:${{ secrets.KEY_PASSWORD }} spotify.apk
-
       - name: GitHub release
         uses: softprops/action-gh-release@v1
         with:
@@ -77,4 +75,4 @@ jobs:
           files: spotify.apk
 
       - name: Clean up
-        run: rm -rf *
+        run: rm -f apkeditor.jar revanced-cli.jar patches.rvp spotify.apk
