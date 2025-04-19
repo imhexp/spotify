@@ -21,7 +21,7 @@ jobs:
 
           xapkname=$(ls Spotify*.xapk)
           echo "SPOTIFY_XAPK=$xapkname" >> $GITHUB_ENV
-          version=$(echo "$xapkname" | cut -d '_' -f3)
+          version=$(echo "$xapkname" | grep -oP '\d+(\.\d+)+')
           echo "SPOTIFY_VERSION=$version" >> $GITHUB_ENV
 
           mv "$xapkname" spotify.xapk
