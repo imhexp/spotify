@@ -32,7 +32,7 @@ jobs:
 
           rm spotify.xapk
 
-          mv spotify_merged.apk spotify.apk
+          mv spotify_merged.apk spotify.apk   
 
       - name: Patch download and actually patching Spotify
         run: |
