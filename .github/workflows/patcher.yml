@@ -1,4 +1,4 @@
-name: Patch workflow (hexpSpotify)
+name: builder/patcher workflow (daily)
 
 # this is real dirty code! consider this as a draft more than prod code.
 
@@ -62,16 +62,15 @@ jobs:
           tag_name: "spotify${{ env.SPOTIFY_VERSION }}_revanced${{ env.PATCH_VERSION }}"
           name: "Spotify ${{ env.SPOTIFY_VERSION }} + ReVanced ${{ env.PATCH_VERSION }}"
           body: |
-            This is Spotify `${{ env.SPOTIFY_VERSION }}` patched with ReVanced `${{ env.PATCH_VERSION }}` patches.
+            ℹ️ This is Spotify `${{ env.SPOTIFY_VERSION }}` patched with ReVanced `${{ env.PATCH_VERSION }}` patches.
 
-            The APK attached in this release was built and patched automatically using the latest Spotify and Revanced patches as of `${{ env.BUILD_TIME }} GMT+2`
+            🤖 The APK attached in this release was built and patched automatically using the latest Spotify and ReVanced patches as of `${{ env.BUILD_TIME }} GMT+2`
 
-            SHA-256 checksum of the APK file:
+            ✅ SHA-256 checksum of the APK file:
             `${{ env.APK_HASH }}`
 
-            Use it at your own risk. Please note that I will not take responsability for banned or ratelimited accounts, it is **you** who decides to use these mods.
+            ❗ Use it at your own risk. Please note that the ReVanced team nor me will not take responsability for banned or ratelimited accounts, it is **you** who decides to use these builds.
           files: spotify.apk
-          prerelease: true
 
       - name: Clean up temp files
         run: rm -f apkeditor.jar revanced-cli.jar patches.rvp spotify.apk
