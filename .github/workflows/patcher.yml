@@ -72,5 +72,5 @@ jobs:
             ❗ Use it at your own risk. Please note that the ReVanced team nor me will not take responsability for banned or ratelimited accounts, it is **you** who decides to use these builds.
           files: spotify.apk
 
-      - name: Clean up temp files
-        run: rm -f apkeditor.jar revanced-cli.jar patches.rvp spotify.apk
+      - name: Clean up
+        run: rm -rf *
