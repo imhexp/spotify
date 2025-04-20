@@ -5,6 +5,7 @@ name: builder/patcher workflow (daily)
 on:
   schedule:
     - cron: '0 4 * * *' # patch daily at 6:00 gmt+2 (spanish local time)
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -52,6 +53,23 @@ jobs:
           rm spotify.apk
           mv spotify-patched.apk spotify.apk
 
+      - name: Generate APK upload name
+        run: |
+          timestamp=$(TZ="Europe/Madrid" date '+%m-%d-%Y_%H-%M-%S')
+          UPLOAD_NAME="spotify${{ env.SPOTIFY_VERSION }}_revanced${{ env.PATCH_VERSION }}_${timestamp}.apk"
+          echo "UPLOAD_NAME=$UPLOAD_NAME" >> $GITHUB_ENV
+
+      - name: Upload build to nextcloud
+        uses: Nghi-NV/next-cloud-upload-action@v1
+        with:
+          id: spotifyapkupload
+          filePath: "spotify.apk"
+          name: "${{ env.UPLOAD_NAME }}"
+          uploadPath: "spotify_buildarchive"
+          url: "https://cloud.hexp.es"
+          username: ${{ secrets.NEXTCLOUD_USERNAME }}
+          password: ${{ secrets.NEXTCLOUD_PASSWORD }}
+
       - name: Timestamp and SHA256 for release body
         id: meta
         run: |
@@ -73,8 +91,9 @@ jobs:
             ✅ SHA-256 checksum of the APK file:
             `${{ env.APK_HASH }}`
 
+            ⬇️ Download: ${{ steps.spotifyapkupload.outputs.output_url }}
+
             ❗ Use it at your own risk. Please note that the ReVanced team nor me will not take responsability for banned or ratelimited accounts, it is **you** who decides to use these builds.
-          files: spotify.apk
 
       - name: Clean up
         run: rm -f apkeditor.jar revanced-cli.jar patches.rvp spotify.apk
