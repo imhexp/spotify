@@ -103,14 +103,12 @@ jobs:
 
       - name: Build summary
         run: |
-          echo "✅ Spotify patch finished!" >> $GITHUB_STEP_SUMMARY
+          echo "Spotify version: \`${{ env.SPOTIFY_VERSION }}`\" >> $GITHUB_STEP_SUMMARY
+          echo "ReVanced patch version: \`${{ env.PATCH_VERSION }}`\" >> $GITHUB_STEP_SUMMARY
+          echo "Timestamp (gmt+2): \`${{ env.BUILD_TIME }}`\" >> $GITHUB_STEP_SUMMARY
+          echo "SHA256: \`${{ env.APK_HASH }}`\" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "spotify version: `${{ env.SPOTIFY_VERSION }}`" >> $GITHUB_STEP_SUMMARY
-          echo "revanced patch version: `${{ env.PATCH_VERSION }}`" >> $GITHUB_STEP_SUMMARY
-          echo "timestamp (gmt+2): `${{ env.BUILD_TIME }}`" >> $GITHUB_STEP_SUMMARY
-          echo "sha256: `${{ env.APK_HASH }}`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "shared dl link (nextcloud): ${{ env.DOWNLOAD_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "DL link (nextcloud): ${{ env.DOWNLOAD_URL }}" >> $GITHUB_STEP_SUMMARY
 
 
       - name: Clean up
