@@ -67,12 +67,14 @@ jobs:
           name: "${{ env.UPLOAD_NAME }}"
           uploadPath: "spotify_buildarchive"
           url: "https://cloud.hexp.es"
-          username: ${{ secrets.NEXTCLOUD_USERNAME }}
+          username: "hexp"
           password: ${{ secrets.NEXTCLOUD_PASSWORD }}
 
-      - name: Get upload link
+      - name: Generate download link
         run: |
-          echo "${{ steps.uploadFile.outputs.output_url }}"
+          DOWNLOAD_URL="https://cloud.hexp.es/remote.php/dav/files/hexp/spotify_buildarchive/${{ env.UPLOAD_NAME }}"
+          echo "DOWNLOAD_URL=$DOWNLOAD_URL" >> $GITHUB_ENV
+
 
       - name: Timestamp and SHA256 for release body
         id: meta
@@ -95,9 +97,21 @@ jobs:
             ✅ SHA-256 checksum of the APK file:
             `${{ env.APK_HASH }}`
 
-            ⬇️ Download: ${{ steps.uploadFile.outputs.output_url }}
+            ⬇️ Download: ${{ env.DOWNLOAD_URL }}
 
             ❗ Use it at your own risk. Please note that the ReVanced team nor me will not take responsability for banned or ratelimited accounts, it is **you** who decides to use these builds.
+
+      - name: Build summary
+        run: |
+          echo "✅ Spotify patch finished!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "spotify version: `${{ env.SPOTIFY_VERSION }}`" >> $GITHUB_STEP_SUMMARY
+          echo "revanced patch version: `${{ env.PATCH_VERSION }}`" >> $GITHUB_STEP_SUMMARY
+          echo "timestamp (gmt+2): `${{ env.BUILD_TIME }}`" >> $GITHUB_STEP_SUMMARY
+          echo "sha256: `${{ env.APK_HASH }}`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "shared dl link (nextcloud): ${{ env.DOWNLOAD_URL }}" >> $GITHUB_STEP_SUMMARY
+
 
       - name: Clean up
         run: rm -f apkeditor.jar revanced-cli.jar patches.rvp spotify.apk
