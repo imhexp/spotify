@@ -73,11 +73,11 @@ jobs:
       - name: Generate shareable link on Nextcloud
         run: |
           sharerequest="curl -u 'hexp:${{ secrets.NEXTCLOUD_PASSWORD }}' -X POST --data-urlencode 'path=/spotify_buildarchive/${{ env.UPLOAD_NAME }}' -d 'shareType=3' -d 'permissions=1' 'https://cloud.hexp.es/ocs/v2.php/apps/files_sharing/api/v1/shares' -H 'OCS-APIRequest: true'"
-      
+
           result=$(eval $sharerequest)
-      
-          download_link=$(echo "$result" | jq -r '.ocs.data.url')
-      
+
+          download_link=$(echo "$result" | xmllint --xpath "string(//ocs/data/url)" -)
+
           echo "DOWNLOAD_URL=$download_link" >> $GITHUB_ENV
 
 
