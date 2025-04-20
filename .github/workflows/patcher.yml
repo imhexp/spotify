@@ -62,13 +62,17 @@ jobs:
       - name: Upload build to nextcloud
         uses: Nghi-NV/next-cloud-upload-action@v1
         with:
-          id: spotifyapkupload
+          id: uploadFile
           filePath: "spotify.apk"
           name: "${{ env.UPLOAD_NAME }}"
           uploadPath: "spotify_buildarchive"
           url: "https://cloud.hexp.es"
           username: ${{ secrets.NEXTCLOUD_USERNAME }}
           password: ${{ secrets.NEXTCLOUD_PASSWORD }}
+
+      - name: Get upload link
+        run: |
+          echo "${{ steps.uploadFile.outputs.output_url }}"
 
       - name: Timestamp and SHA256 for release body
         id: meta
@@ -91,7 +95,7 @@ jobs:
             ✅ SHA-256 checksum of the APK file:
             `${{ env.APK_HASH }}`
 
-            ⬇️ Download: ${{ steps.spotifyapkupload.outputs.output_url }}
+            ⬇️ Download: ${{ steps.uploadFile.outputs.output_url }}
 
             ❗ Use it at your own risk. Please note that the ReVanced team nor me will not take responsability for banned or ratelimited accounts, it is **you** who decides to use these builds.
 
