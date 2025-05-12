@@ -13,19 +13,19 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - name: Downloading and handling original Spotify package
+      - name: Download and prepare Spotify APK
         run: |
           wget --content-disposition --user-agent="Mozilla/5.0" "https://d.apkpure.com/b/XAPK/com.spotify.music?version=latest"
 
-          # Detect downloaded file
-          if ls Spotify*.xapk 1> /dev/null 2>&1; then
-            filename=$(ls Spotify*.xapk)
+          # Detect file type and get filename safely
+          if compgen -G "Spotify*.xapk" > /dev/null; then
+            filename=$(find . -maxdepth 1 -type f -name "Spotify*.xapk" | head -n 1 | sed 's|^\./||')
             extension="xapk"
-          elif ls Spotify*.apk 1> /dev/null 2>&1; then
-            filename=$(ls Spotify*.apk)
+          elif compgen -G "Spotify*.apk" > /dev/null; then
+            filename=$(find . -maxdepth 1 -type f -name "Spotify*.apk" | head -n 1 | sed 's|^\./||')
             extension="apk"
           else
-            echo "No .xapk or .apk found after download"
+            echo "No .xapk or .apk file found after download"
             exit 1
           fi
 
@@ -47,7 +47,7 @@ jobs:
             mv "$filename" spotify.apk
           fi
 
-      - name: Patch download and actually patching Spotify
+      - name: Patch Spotify with ReVanced
         run: |
           TAG=$(curl -sSL "https://api.github.com/repos/ReVanced/revanced-cli/releases/latest" | jq -r '.tag_name')
           VERSION=${TAG#v}
@@ -68,7 +68,7 @@ jobs:
           timestamp=$(TZ="Europe/Madrid" date '+%m-%d-%Y_%H-%M-%S')
           echo "UPLOAD_NAME=spotify${{ env.SPOTIFY_VERSION }}_revanced${{ env.PATCH_VERSION }}_${timestamp}.apk" >> $GITHUB_ENV
 
-      - name: Upload build to nextcloud
+      - name: Upload to Nextcloud
         uses: Nghi-NV/next-cloud-upload-action@v1
         with:
           id: uploadFile
@@ -79,21 +79,25 @@ jobs:
           username: "hexp"
           password: ${{ secrets.NEXTCLOUD_PASSWORD }}
 
-      - name: Generate shareable link on Nextcloud
+      - name: Generate shareable link
         run: |
-          result=$(curl -u 'hexp:${{ secrets.NEXTCLOUD_PASSWORD }}' -X POST --data-urlencode 'path=/spotify_buildarchive/${{ env.UPLOAD_NAME }}' -d 'shareType=3' -d 'permissions=1' 'https://cloud.hexp.es/ocs/v2.php/apps/files_sharing/api/v1/shares' -H 'OCS-APIRequest: true')
+          result=$(curl -u 'hexp:${{ secrets.NEXTCLOUD_PASSWORD }}' -X POST \
+            --data-urlencode 'path=/spotify_buildarchive/${{ env.UPLOAD_NAME }}' \
+            -d 'shareType=3' -d 'permissions=1' \
+            'https://cloud.hexp.es/ocs/v2.php/apps/files_sharing/api/v1/shares' \
+            -H 'OCS-APIRequest: true')
 
           download_link=$(echo "$result" | xmllint --xpath "string(//ocs/data/url)" -)
           echo "DOWNLOAD_URL=$download_link" >> $GITHUB_ENV
 
-      - name: Timestamp and SHA256 for release body
+      - name: Timestamp and SHA256
         run: |
           BUILD_TIME=$(TZ="Europe/Madrid" date '+%H:%M:%S')
           APK_HASH=$(sha256sum spotify.apk | cut -d ' ' -f1)
           echo "BUILD_TIME=$BUILD_TIME" >> $GITHUB_ENV
           echo "APK_HASH=$APK_HASH" >> $GITHUB_ENV
 
-      - name: GitHub release
+      - name: GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: "spotify${{ env.SPOTIFY_VERSION }}_revanced${{ env.PATCH_VERSION }}"
@@ -101,23 +105,22 @@ jobs:
           body: |
             ℹ️ This is Spotify `${{ env.SPOTIFY_VERSION }}` patched with ReVanced `${{ env.PATCH_VERSION }}` patches.
 
-            🤖 The APK attached in this release was built and patched automatically using the latest Spotify and ReVanced patches as of `${{ env.BUILD_TIME }} GMT+2`
+            🤖 Built and patched automatically on `${{ env.BUILD_TIME }} GMT+2`
 
-            ✅ SHA-256 checksum of the APK file:
+            ✅ SHA-256:
             `${{ env.APK_HASH }}`
 
-            ⬇️ Download: ${{ env.DOWNLOAD_URL }}
+            ⬇️ [Download from Nextcloud](${{ env.DOWNLOAD_URL }})
 
-            ❗ Use it at your own risk. Please note that the ReVanced team nor me will not take responsibility for banned or ratelimited accounts.
+            ❗ Use it at your own risk.
 
-      - name: Build summary
+      - name: Build Summary
         run: |
           echo "Spotify version: \`${{ env.SPOTIFY_VERSION }}\`" >> $GITHUB_STEP_SUMMARY
           echo "ReVanced patch version: \`${{ env.PATCH_VERSION }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "Timestamp (gmt+2): \`${{ env.BUILD_TIME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Timestamp (GMT+2): \`${{ env.BUILD_TIME }}\`" >> $GITHUB_STEP_SUMMARY
           echo "SHA256: \`${{ env.APK_HASH }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "DL link (nextcloud): ${{ env.DOWNLOAD_URL }}" >> $GITHUB_STEP_SUMMARY
+          echo "Download link: ${{ env.DOWNLOAD_URL }}" >> $GITHUB_STEP_SUMMARY
 
       - name: Clean up
         run: rm -f apkeditor.jar revanced-cli.jar patches.rvp spotify.apk
