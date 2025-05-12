@@ -15,26 +15,39 @@ jobs:
     runs-on: self-hosted # haha cant afford a vps
 
     steps:
-      - name: Downloading and merging of the original Spotify .xapk
-        run: |
-          wget --content-disposition --user-agent="Mozilla/5.0" "https://d.apkpure.com/b/XAPK/com.spotify.music?version=latest"
+      - name: Downloading and handling original Spotify package
+  run: |
+    wget --content-disposition --user-agent="Mozilla/5.0" "https://d.apkpure.com/b/XAPK/com.spotify.music?version=latest"
 
-          xapkname=$(ls Spotify*.xapk)
-          echo "SPOTIFY_XAPK=$xapkname" >> $GITHUB_ENV
-          version=$(echo "$xapkname" | grep -oP '\d+(\.\d+)+')
-          echo "SPOTIFY_VERSION=$version" >> $GITHUB_ENV
+    # Detectar archivo descargado (.xapk o .apk)
+    if ls Spotify*.xapk 1> /dev/null 2>&1; then
+      filename=$(ls Spotify*.xapk)
+      extension="xapk"
+    elif ls Spotify*.apk 1> /dev/null 2>&1; then
+      filename=$(ls Spotify*.apk)
+      extension="apk"
+    else
+      echo "No se encontró ni .xapk ni .apk tras la descarga"
+      exit 1
+    fi
 
-          mv "$xapkname" spotify.xapk
+    echo "SPOTIFY_FILENAME=$filename" >> $GITHUB_ENV
+    version=$(echo "$filename" | grep -oP '\d+(\.\d+)+')
+    echo "SPOTIFY_VERSION=$version" >> $GITHUB_ENV
 
-          wget -O apkeditor.jar "https://github.com/REAndroid/APKEditor/releases/download/V1.4.2/APKEditor-1.4.2.jar"
+    # Si es .xapk, hacer merge y firmar
+    if [ "$extension" = "xapk" ]; then
+      mv "$filename" spotify.xapk
 
-          java -jar apkeditor.jar m -i spotify.xapk
+      wget -O apkeditor.jar "https://github.com/REAndroid/APKEditor/releases/download/V1.4.2/APKEditor-1.4.2.jar"
+      java -jar apkeditor.jar m -i spotify.xapk
 
-          rm spotify.xapk
+      rm spotify.xapk
+      mv spotify_merged.apk spotify.apk
 
-          mv spotify_merged.apk spotify.apk
-
-          apksigner sign --ks keystore_resign.jks --ks-key-alias ${{ secrets.KEY_ALIAS }} --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} --key-pass pass:${{ secrets.KEY_PASSWORD }} spotify.apk
+      apksigner sign --ks keystore_resign.jks --ks-key-alias ${{ secrets.KEY_ALIAS }} --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} --key-pass pass:${{ secrets.KEY_PASSWORD }} spotify.apk
+    else
+      mv "$filename" spotify.apk
 
       - name: Patch download and actually patching Spotify  # where the madness really starts. this REALLY needs a rewrite (since day 1 lol)
         run: |
