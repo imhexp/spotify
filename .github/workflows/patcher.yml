@@ -1,10 +1,8 @@
 name: builder/patcher workflow (daily)
 
-# this is real dirty code! consider this as a draft, not as prod code. warcrimes await!
-
 on:
   schedule:
-    - cron: '0 4 * * *' # patch daily at 6:00 gmt+2 (spanish local time)
+    - cron: '0 4 * * *' # 6:00 GMT+2
   workflow_dispatch:
 
 permissions:
@@ -12,44 +10,44 @@ permissions:
 
 jobs:
   patch:
-    runs-on: self-hosted # haha cant afford a vps
+    runs-on: self-hosted
 
     steps:
       - name: Downloading and handling original Spotify package
-  run: |
-    wget --content-disposition --user-agent="Mozilla/5.0" "https://d.apkpure.com/b/XAPK/com.spotify.music?version=latest"
+        run: |
+          wget --content-disposition --user-agent="Mozilla/5.0" "https://d.apkpure.com/b/XAPK/com.spotify.music?version=latest"
 
-    # Detectar archivo descargado (.xapk o .apk)
-    if ls Spotify*.xapk 1> /dev/null 2>&1; then
-      filename=$(ls Spotify*.xapk)
-      extension="xapk"
-    elif ls Spotify*.apk 1> /dev/null 2>&1; then
-      filename=$(ls Spotify*.apk)
-      extension="apk"
-    else
-      echo "No se encontró ni .xapk ni .apk tras la descarga"
-      exit 1
-    fi
+          # Detect downloaded file
+          if ls Spotify*.xapk 1> /dev/null 2>&1; then
+            filename=$(ls Spotify*.xapk)
+            extension="xapk"
+          elif ls Spotify*.apk 1> /dev/null 2>&1; then
+            filename=$(ls Spotify*.apk)
+            extension="apk"
+          else
+            echo "No .xapk or .apk found after download"
+            exit 1
+          fi
 
-    echo "SPOTIFY_FILENAME=$filename" >> $GITHUB_ENV
-    version=$(echo "$filename" | grep -oP '\d+(\.\d+)+')
-    echo "SPOTIFY_VERSION=$version" >> $GITHUB_ENV
+          echo "SPOTIFY_FILENAME=$filename" >> $GITHUB_ENV
+          version=$(echo "$filename" | grep -oP '\d+(\.\d+)+')
+          echo "SPOTIFY_VERSION=$version" >> $GITHUB_ENV
 
-    # Si es .xapk, hacer merge y firmar
-    if [ "$extension" = "xapk" ]; then
-      mv "$filename" spotify.xapk
+          if [ "$extension" = "xapk" ]; then
+            mv "$filename" spotify.xapk
 
-      wget -O apkeditor.jar "https://github.com/REAndroid/APKEditor/releases/download/V1.4.2/APKEditor-1.4.2.jar"
-      java -jar apkeditor.jar m -i spotify.xapk
+            wget -O apkeditor.jar "https://github.com/REAndroid/APKEditor/releases/download/V1.4.2/APKEditor-1.4.2.jar"
+            java -jar apkeditor.jar m -i spotify.xapk
 
-      rm spotify.xapk
-      mv spotify_merged.apk spotify.apk
+            rm spotify.xapk
+            mv spotify_merged.apk spotify.apk
 
-      apksigner sign --ks keystore_resign.jks --ks-key-alias ${{ secrets.KEY_ALIAS }} --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} --key-pass pass:${{ secrets.KEY_PASSWORD }} spotify.apk
-    else
-      mv "$filename" spotify.apk
+            apksigner sign --ks keystore_resign.jks --ks-key-alias ${{ secrets.KEY_ALIAS }} --ks-pass pass:${{ secrets.KEYSTORE_PASSWORD }} --key-pass pass:${{ secrets.KEY_PASSWORD }} spotify.apk
+          else
+            mv "$filename" spotify.apk
+          fi
 
-      - name: Patch download and actually patching Spotify  # where the madness really starts. this REALLY needs a rewrite (since day 1 lol)
+      - name: Patch download and actually patching Spotify
         run: |
           TAG=$(curl -sSL "https://api.github.com/repos/ReVanced/revanced-cli/releases/latest" | jq -r '.tag_name')
           VERSION=${TAG#v}
@@ -62,15 +60,13 @@ jobs:
           wget -O patches.rvp "https://github.com/ReVanced/revanced-patches/releases/download/${PATCH_TAG}/patches-${PATCH_VERSION}.rvp"
 
           java -jar revanced-cli.jar patch -p patches.rvp spotify.apk
-
           rm spotify.apk
           mv spotify-patched.apk spotify.apk
 
       - name: Generate APK upload name
         run: |
           timestamp=$(TZ="Europe/Madrid" date '+%m-%d-%Y_%H-%M-%S')
-          UPLOAD_NAME="spotify${{ env.SPOTIFY_VERSION }}_revanced${{ env.PATCH_VERSION }}_${timestamp}.apk"
-          echo "UPLOAD_NAME=$UPLOAD_NAME" >> $GITHUB_ENV
+          echo "UPLOAD_NAME=spotify${{ env.SPOTIFY_VERSION }}_revanced${{ env.PATCH_VERSION }}_${timestamp}.apk" >> $GITHUB_ENV
 
       - name: Upload build to nextcloud
         uses: Nghi-NV/next-cloud-upload-action@v1
@@ -85,20 +81,15 @@ jobs:
 
       - name: Generate shareable link on Nextcloud
         run: |
-          sharerequest="curl -u 'hexp:${{ secrets.NEXTCLOUD_PASSWORD }}' -X POST --data-urlencode 'path=/spotify_buildarchive/${{ env.UPLOAD_NAME }}' -d 'shareType=3' -d 'permissions=1' 'https://cloud.hexp.es/ocs/v2.php/apps/files_sharing/api/v1/shares' -H 'OCS-APIRequest: true'"
-
-          result=$(eval $sharerequest)
+          result=$(curl -u 'hexp:${{ secrets.NEXTCLOUD_PASSWORD }}' -X POST --data-urlencode 'path=/spotify_buildarchive/${{ env.UPLOAD_NAME }}' -d 'shareType=3' -d 'permissions=1' 'https://cloud.hexp.es/ocs/v2.php/apps/files_sharing/api/v1/shares' -H 'OCS-APIRequest: true')
 
           download_link=$(echo "$result" | xmllint --xpath "string(//ocs/data/url)" -)
-
           echo "DOWNLOAD_URL=$download_link" >> $GITHUB_ENV
 
-
       - name: Timestamp and SHA256 for release body
-        id: meta
         run: |
-          export BUILD_TIME=$(TZ="Europe/Madrid" date '+%H:%M:%S')
-          export APK_HASH=$(sha256sum spotify.apk | cut -d ' ' -f1)
+          BUILD_TIME=$(TZ="Europe/Madrid" date '+%H:%M:%S')
+          APK_HASH=$(sha256sum spotify.apk | cut -d ' ' -f1)
           echo "BUILD_TIME=$BUILD_TIME" >> $GITHUB_ENV
           echo "APK_HASH=$APK_HASH" >> $GITHUB_ENV
 
@@ -117,7 +108,7 @@ jobs:
 
             ⬇️ Download: ${{ env.DOWNLOAD_URL }}
 
-            ❗ Use it at your own risk. Please note that the ReVanced team nor me will not take responsability for banned or ratelimited accounts, it is **you** who decides to use these builds.
+            ❗ Use it at your own risk. Please note that the ReVanced team nor me will not take responsibility for banned or ratelimited accounts.
 
       - name: Build summary
         run: |
